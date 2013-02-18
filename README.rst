@@ -1,10 +1,14 @@
-# Sudoku #
+======
+Sudoku
+======
 
 Sudoku game implemented with pyQt.
 
-https://raw.github.com/aaahexing/Sudoku/master/_static/screenshots/sudoku.png
+.. image:: https://raw.github.com/aaahexing/Sudoku/master/_static/screenshots/sudoku.png
 
-# Features #
+========
+Features
+========
 
 * Simple algorithm for puzzles' generation from this blog_
 
