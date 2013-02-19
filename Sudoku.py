@@ -6,7 +6,7 @@ import random
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
-# Single cell
+# Single cell (square)
 class SudokuCell(QLabel):
 	#
 	def __init__(self, elem = 0, parent = None):
@@ -16,6 +16,8 @@ class SudokuCell(QLabel):
 		self.setText(str(self.elem))
 		# Configurations for the cell
 		self.setAlignment(Qt.AlignCenter)
+		# Make the cell always a square
+		self.setFixedSize(60, 60)
 
 	# Update the number of current cell
 	def setElement(self, elem = 0):
@@ -51,30 +53,24 @@ class SudokuDialog(QDialog):
 	#
 	def __init__(self, level = 0, parent = None):
 		super(QDialog, self).__init__(parent)
-		# Initialize the windows attributes
-		self.setWindowTitle("Sudoku Game by aaahexing")
-		self.setFixedSize(600, 600)
-		# Set the layout
+		# Configure the windows
 		self.configure()
 		# Start the game
 		self.level = level
-		self.start()
+		self.newGame()
 
 	#
 	def configure(self):
-		# Configurations of layouts
-		grid_layout = QGridLayout()
-		grid_layout.setSpacing(3)
-		self.setLayout(grid_layout)
-		# outer 3 x 3
-		for gi in range(3):
-			for gj in range(3):
-				layout = QGridLayout()
-				layout.setSpacing(1)
-				grid_layout.addLayout(layout, gi, gj)
 		# Configurations of apperance
+		# Widget's background color
 		self.background_ss = (
 			'background-color: rgb(41, 44, 51);'
+		)
+		# Style sheet of buttons
+		self.button_ss = (
+			'background-color: rgb(211, 211, 211);'
+			'border: 2px groove; border-radius: 10px; padding: 2px 4px;'
+			'font-size: 10pt;'
 		)
 		# Empty cells
 		self.empty_ss = (
@@ -93,6 +89,42 @@ class SudokuDialog(QDialog):
 			'color: rgb(0, 0, 0);'
 			'font-size: 25pt; font-family: "consolas";'
 		)
+		# Initialize the windows attributes
+		self.setWindowTitle("Sudoku Game by aaahexing")
+		# Configurations of layouts
+		self.grid_layout = QGridLayout()
+		self.grid_layout.setSpacing(3)
+		# outer 3 x 3
+		for gi in range(3):
+			for gj in range(3):
+				layout = QGridLayout()
+				layout.setSpacing(1)
+				self.grid_layout.addLayout(layout, gi, gj)
+		# Create three buttons
+		self.new_button = QPushButton('New Game')
+		self.new_button.setStyleSheet(self.button_ss)
+		self.connect(self.new_button, SIGNAL('clicked()'), self.newGame)
+		self.restart_button = QPushButton('Restart')
+		self.restart_button.setStyleSheet(self.button_ss)
+		self.connect(self.restart_button, SIGNAL('clicked()'), self.restartGame)
+		self.solution_button = QPushButton('Solution')
+		self.solution_button.setStyleSheet(self.button_ss)
+		self.connect(self.solution_button, SIGNAL('clicked()'), self.fillSolution)
+		# The panel layout
+		self.panel_layout = QHBoxLayout()
+		self.panel_layout.addStretch()
+		self.panel_layout.addWidget(self.new_button)
+		self.panel_layout.addSpacing(10)
+		self.panel_layout.addWidget(self.restart_button)
+		self.panel_layout.addSpacing(10)
+		self.panel_layout.addWidget(self.solution_button)
+		self.panel_layout.addStretch()
+		# The main layout
+		self.main_layout = QVBoxLayout()
+		self.main_layout.addLayout(self.grid_layout)
+		self.main_layout.addSpacing(5)
+		self.main_layout.addLayout(self.panel_layout)
+		self.setLayout(self.main_layout)
 
 	# Generate puzzle using transformations on know solutions
 	def simpleGen(self):
@@ -155,23 +187,44 @@ class SudokuDialog(QDialog):
 				if (self.grid[index].isStatic()):
 					self.grid[index] = SudokuCell(0)
 					break
+		# Backup all the elements
+		self.backup_elements = []
+		for i in range(81):
+			self.backup_elements.append(self.grid[i].getElement())
+
+	# Fill the elements
+	def fillGrids(self):
 		# Get the global grid-layout
 		grid_layout = self.layout()
 		# Fill the elements
 		for i in range(9):
 			for j in range(9):
-				inner_layout = grid_layout.itemAtPosition(i // 3, j // 3)
+				inner_layout = self.grid_layout.itemAtPosition(i // 3, j // 3)
 				# inner 3 x 3
 				cell = self.grid[i * 9 + j]
 				self.connect(cell, SIGNAL('elementChanged(PyQt_PyObject)'), self.update)
 				inner_layout.addWidget(cell, i % 3, j % 3)
 
 	#
-	def start(self):
-		# Fill all the cells
+	def newGame(self):
+		#
 		self.generatePuzzle()
+		# Fill all the cells
+		self.fillGrids()
 		# Update the appearance
 		self.update()
+
+	def restartGame(self):
+		#
+		for i in range(81):
+			self.grid[i] = SudokuCell(self.backup_elements[i])
+		# Fill all the cells
+		self.fillGrids()
+		# Update the appearance
+		self.update()
+
+	def fillSolution(self):
+		print('Solution not implemented.')
 	
 	# Main loop of current game
 	def update(self):
@@ -212,7 +265,7 @@ class SudokuDialog(QDialog):
 		if (event.key() == Qt.Key_Escape):
 			self.close()
 		elif (event.key() == Qt.Key_F2):
-			self.start()
+			self.restart()
 
 def startGame():
 	sudoku_app = QApplication(sys.argv)
