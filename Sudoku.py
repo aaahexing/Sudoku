@@ -6,26 +6,89 @@ import random
 from PyQt4.QtCore import *
 from PyQt4.QtGui import *
 
+# Configurations of apperance
+# Basic theme
+class SudokuTheme:
+	# Empty cells
+	empty_ss = (
+		'background-color: rgb(255, 255, 255);'
+		'color: rgb(255, 255, 255);'
+	)
+	# In-focus empty cells
+	focus_empty_ss = (
+		'background-color: rgb(255, 245, 225);'
+		'color: rgb(255, 245, 225);'	
+	)
+	# Static cell (pre generated)
+	static_ss = (
+		'background-color: rgb(211, 211, 211);'
+		'color: rgb(0, 0, 0);'
+		'font-size: 25pt; font-family: "consolas";'
+	)
+	# Dynamic cell (user specified)
+	dynamic_ss = (
+		'background-color: rgb(255, 255, 255);'
+		'color: rgb(0, 0, 0);'
+		'font-size: 25pt; font-family: "consolas";'
+	)
+	# In-focus dynamic cells
+	focus_dynamic_ss = (
+		'background-color: rgb(255, 245, 225);'
+		'color: rgb(0, 0, 0);'
+		'font-size: 25pt; font-family: "consolas";'		
+	)
+	# Widget's background color
+	background_ss = (
+		'background-color: rgb(41, 44, 51);'
+	)
+	# Style sheet of buttons
+	button_ss = (
+		'background-color: rgb(211, 211, 211);'
+		'border: 2px groove; border-radius: 10px; padding: 2px 4px;'
+		'font-size: 10pt;'
+	)
+
 # Single cell (square)
 class SudokuCell(QLabel):
 	#
-	def __init__(self, elem = 0, parent = None):
+	def __init__(self, elem = 0, theme = SudokuTheme(), parent = None):
 		super(QLabel, self).__init__(parent)
+		# Init element
 		self.elem = elem
 		self.static = (elem > 0)
 		self.setText(str(self.elem))
+		# Load theme
+		self.theme = theme
+		# Color the cells
+		self.colorCell()
 		# Configurations for the cell
 		self.setAlignment(Qt.AlignCenter)
 		# Make the cell always a square
 		self.setFixedSize(60, 60)
 
+	#
+	def colorCell(self):
+		if (self.isStatic()):
+			self.setStyleSheet(self.theme.static_ss)
+		elif (self.isEmpty()):
+			if (not self.hasFocus()):
+				self.setStyleSheet(self.theme.empty_ss)
+			else:
+				self.setStyleSheet(self.theme.focus_empty_ss)
+		else:
+			if (not self.hasFocus()):
+				self.setStyleSheet(self.theme.dynamic_ss)
+			else:
+				self.setStyleSheet(self.theme.focus_dynamic_ss)
+
 	# Update the number of current cell
 	def setElement(self, elem = 0):
-		if (not self.static):
+		if (not self.isStatic()):
 			self.elem = elem
 			# Emit the corresponding signal to notify the parent-class
 			self.emit(SIGNAL('elementChanged(PyQt_PyObject)'), self)
-		self.setText(str(self.elem))
+		self.setText(str(self.elem))			
+		self.colorCell()
 
 	#
 	def isEmpty(self):
@@ -39,56 +102,40 @@ class SudokuCell(QLabel):
 	def getElement(self):
 		return self.elem
 
-	# Extend the 'QLabel' class with 'mouseReleaseEvent'
+	#
+	def focusInEvent(self, event):
+		self.colorCell()
+
+	def focusOutEvent(self, event):
+		self.colorCell()
+
+	# Mouse input
 	def mouseReleaseEvent(self, event):
-		if (event.button() == Qt.LeftButton):
-			# Increase the index
-			self.setElement((self.elem + 1) % 10)
-		else:
+		if (not event.button() == Qt.LeftButton):
 			# Clear the index
 			self.setElement(0)
+
+	# Keyboard input
+	def keyPressEvent(self, event):
+		if (event.key() == Qt.Key_Escape):
+			self.emit(SIGNAL('quitGame(PyQt_PyObject)'), self)
+		elif (event.key() >= Qt.Key_0 and event.key() <= Qt.Key_9):
+			self.setElement(event.key() - Qt.Key_0)
 
 # The main UI
 class SudokuDialog(QDialog):
 	#
-	def __init__(self, level = 0, parent = None):
+	def __init__(self, level = 0, theme = SudokuTheme(), parent = None):
 		super(QDialog, self).__init__(parent)
+		self.level = level
+		self.theme = theme
 		# Configure the windows
 		self.configure()
 		# Start the game
-		self.level = level
 		self.newGame()
 
 	#
 	def configure(self):
-		# Configurations of apperance
-		# Widget's background color
-		self.background_ss = (
-			'background-color: rgb(41, 44, 51);'
-		)
-		# Style sheet of buttons
-		self.button_ss = (
-			'background-color: rgb(211, 211, 211);'
-			'border: 2px groove; border-radius: 10px; padding: 2px 4px;'
-			'font-size: 10pt;'
-		)
-		# Empty cells
-		self.empty_ss = (
-			'background-color: rgb(255, 255, 255);'
-			'color: rgb(255, 255, 255);'
-		)
-		# Static cell (pre generated)
-		self.static_ss = (
-			'background-color: rgb(211, 211, 211);'
-			'color: rgb(0, 0, 0);'
-			'font-size: 25pt; font-family: "consolas";'
-		)
-		# Dynamic cell (user specified)
-		self.dynamic_ss = (
-			'background-color: rgb(255, 255, 255);'
-			'color: rgb(0, 0, 0);'
-			'font-size: 25pt; font-family: "consolas";'
-		)
 		# Initialize the windows attributes
 		self.setWindowTitle("Sudoku Game by aaahexing")
 		# Configurations of layouts
@@ -102,13 +149,13 @@ class SudokuDialog(QDialog):
 				self.grid_layout.addLayout(layout, gi, gj)
 		# Create three buttons
 		self.new_button = QPushButton('New Game')
-		self.new_button.setStyleSheet(self.button_ss)
+		self.new_button.setStyleSheet(self.theme.button_ss)
 		self.connect(self.new_button, SIGNAL('clicked()'), self.newGame)
 		self.restart_button = QPushButton('Restart')
-		self.restart_button.setStyleSheet(self.button_ss)
+		self.restart_button.setStyleSheet(self.theme.button_ss)
 		self.connect(self.restart_button, SIGNAL('clicked()'), self.restartGame)
 		self.solution_button = QPushButton('Solution')
-		self.solution_button.setStyleSheet(self.button_ss)
+		self.solution_button.setStyleSheet(self.theme.button_ss)
 		self.connect(self.solution_button, SIGNAL('clicked()'), self.fillSolution)
 		# The panel layout
 		self.panel_layout = QHBoxLayout()
@@ -140,7 +187,7 @@ class SudokuDialog(QDialog):
 		self.grid = []
 		for i in range(9):
 			for j in range(9):
-				cell = SudokuCell(knows[i * 9 + j])
+				cell = SudokuCell(knows[i * 9 + j], self.theme)
 				self.grid.append(cell)
 		# Apply transformations
 		for iter in range(random.randint(10, 20)):
@@ -185,7 +232,7 @@ class SudokuDialog(QDialog):
 			while (True):
 				index = random.randint(0, 80)
 				if (self.grid[index].isStatic()):
-					self.grid[index] = SudokuCell(0)
+					self.grid[index] = SudokuCell(0, self.theme)
 					break
 		# Backup all the elements
 		self.backup_elements = []
@@ -195,15 +242,16 @@ class SudokuDialog(QDialog):
 	# Fill the elements
 	def fillGrids(self):
 		# Get the global grid-layout
-		grid_layout = self.layout()
+		grid_layout = self.grid_layout
 		# Fill the elements
 		for i in range(9):
 			for j in range(9):
 				inner_layout = self.grid_layout.itemAtPosition(i // 3, j // 3)
-				# inner 3 x 3
 				cell = self.grid[i * 9 + j]
-				self.connect(cell, SIGNAL('elementChanged(PyQt_PyObject)'), self.update)
 				inner_layout.addWidget(cell, i % 3, j % 3)
+				self.connect(cell, SIGNAL('elementChanged(PyQt_PyObject)'), self.update)
+				self.connect(cell, SIGNAL('quitGame(PyQt_PyObject)'), self.quit)
+				cell.setFocusPolicy(Qt.StrongFocus)
 
 	#
 	def newGame(self):
@@ -217,7 +265,7 @@ class SudokuDialog(QDialog):
 	def restartGame(self):
 		#
 		for i in range(81):
-			self.grid[i] = SudokuCell(self.backup_elements[i])
+			self.grid[i] = SudokuCell(self.backup_elements[i], self.theme)
 		# Fill all the cells
 		self.fillGrids()
 		# Update the appearance
@@ -229,14 +277,7 @@ class SudokuDialog(QDialog):
 	# Main loop of current game
 	def update(self):
 		# Update the appearance of the grids
-		self.setStyleSheet(self.background_ss)
-		for cell in self.grid:
-			if (cell.isEmpty()):
-				cell.setStyleSheet(self.empty_ss)
-			elif (cell.isStatic()):
-				cell.setStyleSheet(self.static_ss)
-			else:
-				cell.setStyleSheet(self.dynamic_ss)
+		self.setStyleSheet(self.theme.background_ss)
 		# Check the game status
 		row = []
 		col = []
@@ -260,12 +301,16 @@ class SudokuDialog(QDialog):
 		if (finish):
 			print("You win ^_^")
 
-	# Event handlers
+	# Quit game
+	def quit(self):
+		self.close()
+
+	#
 	def keyPressEvent(self, event):
 		if (event.key() == Qt.Key_Escape):
-			self.close()
+			self.quit()
 		elif (event.key() == Qt.Key_F2):
-			self.restart()
+			self.newGame()		
 
 def startGame():
 	sudoku_app = QApplication(sys.argv)
