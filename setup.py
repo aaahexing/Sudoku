@@ -1,3 +1,4 @@
+import sys
 import re
 from cx_Freeze import setup, Executable
 
